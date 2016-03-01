@@ -7,18 +7,10 @@ package com.kafka.message.server.example.test;
 import com.kafka.message.server.example.core.KafkaMailConsumer;
 import com.kafka.message.server.example.core.KafkaMailProducer;
 import kafka.admin.TopicCommand;
-import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerIterator;
-import kafka.consumer.KafkaStream;
-import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.producer.KeyedMessage;
-import kafka.producer.Producer;
-import kafka.producer.ProducerConfig;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import kafka.utils.MockTime;
 import kafka.utils.TestUtils;
-import kafka.utils.Time;
 import kafka.utils.ZkUtils;
 import kafka.zk.EmbeddedZookeeper;
 import org.apache.kafka.common.protocol.SecurityProtocol;
@@ -33,28 +25,24 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.SocketException;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
 /**
- * For online documentation see
+ * For online documentation see kafka 0.9.0.0 trunk
  *
- * https://github.com/apache/kafka/blob/0.8.2/core/src/test/scala/unit/kafka/utils/TestUtils.scala
- * https://github.com/apache/kafka/blob/0.8.2/core/src/main/scala/kafka/admin/TopicCommand.scala
- * https://github.com/apache/kafka/blob/0.8.2/core/src/test/scala/unit/kafka/admin/TopicCommandTest.scala
  */
 public class KafkaProducerTest {
 
-    public static final String MESSAGE = "message";
-    public static final String HELLO = "hello";
     @Rule
     public TemporaryFolder folder= new TemporaryFolder();
+
+    public static final String MESSAGE = "message";
+    public static final String HELLO = "hello";
 
     //private int brokerId = 0;
     private String topic = "test";

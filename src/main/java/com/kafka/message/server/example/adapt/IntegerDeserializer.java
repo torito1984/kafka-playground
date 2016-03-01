@@ -1,8 +1,5 @@
 package com.kafka.message.server.example.adapt;
 
-import kafka.serializer.Decoder;
-import kafka.serializer.Encoder;
-import kafka.utils.VerifiableProperties;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 
