@@ -26,12 +26,16 @@ import java.util.Random;
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.Callback;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 
 /**
  * Created by david on 2/27/16.
  */
 public class KafkaMailProducer extends Thread {
-	private final Producer<Integer, String> producer;
+	private final KafkaProducer<Integer, String> producer;
 	private final String topic;
 	private final String directoryPath;
 	private final Properties props = new Properties();
@@ -44,13 +48,15 @@ public class KafkaMailProducer extends Thread {
 	 * @param directoryPath the directory path
 	 */
 	public KafkaMailProducer(String topic, String directoryPath) {
-	    props.put("serializer.class", "kafka.serializer.StringEncoder");
-		props.put("key.serializer.class", "com.kafka.message.server.example.adapt.IntegerEncoderDecoder");
-		props.put("partitioner.class", "com.kafka.message.server.example.adapt.CusomPartitioner");
+		this(topic, directoryPath, KafkaMailProperties.kafkaServerPort);
+	}
 
-		props.put("metadata.broker.list",
-				KafkaMailProperties.kafkaServerURL+":"+KafkaMailProperties.kafkaServerPort);
-		producer = new Producer<Integer, String>(new ProducerConfig(props));
+	public KafkaMailProducer(String topic, String directoryPath, int port) {
+		props.put("key.serializer", "com.kafka.message.server.example.adapt.IntegerSerializer");
+		props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+		props.put("partitioner.class", "com.kafka.message.server.example.adapt.CustomPartitioner");
+		props.put("bootstrap.servers", KafkaMailProperties.kafkaServerURL + ":" + port);
+		producer = new KafkaProducer<Integer, String>(props);
 		this.topic = topic;
 		this.directoryPath = directoryPath;
 		rnd = new Random();
@@ -67,7 +73,7 @@ public class KafkaMailProducer extends Thread {
 	}
 	
 	/**
-	 * The Class WatchDir.
+	 * The Class WatchDir: once directory is clean, it watches for new files added.
 	 */
 	private class WatchDir extends Thread{
 		private WatchKey key; 
@@ -131,7 +137,7 @@ public class KafkaMailProducer extends Thread {
 	}
 	
 	/**
-	 * The Class ReadDir.
+	 * The Class ReadDir: pushes all messages before start watching
 	 */
 	class ReadDir extends Thread{
 		private final Path directory;
@@ -182,11 +188,38 @@ public class KafkaMailProducer extends Thread {
 	    inChannel.close();
 	    aFile.close();
 
-	    producer.send(new KeyedMessage<Integer, String>(topic, new Integer(rnd.nextInt(255)), strBuilder.toString()));
-	    
-	    System.out.println("Producer: " + file.getName() + " - content consumed.");
-	    
+	  	int key = new Integer(rnd.nextInt(255));
+	  	String value = strBuilder.toString();
+
+	    producer.send(new ProducerRecord<Integer, String>(topic, key, value),
+				new DemoCallBack(file.getName()));
+
 	    file.delete();
+  }
+
+  private class DemoCallBack implements Callback {
+
+		private final String fileName;
+
+		public DemoCallBack(String fileName) {
+			this.fileName = fileName;
+		}
+
+		/**
+		 * A callback method the user can implement to provide asynchronous handling of request completion.
+		 * This method will be called when the record sent to the server has been acknowledged.
+		 * Exactly one of the arguments will be non-null.
+		 *
+		 * @param metadata  The metadata for the record that was sent (i.e. the partition and offset). Null if an error
+		 *                  occurred.
+		 * @param exception The exception thrown during processing of this record. Null if no error occurred.
+		 */
+		public void onCompletion(RecordMetadata metadata, Exception exception) {
+			if (metadata != null) {
+				System.out.println("Producer: " + fileName + " - content consumed.");
+			} else {
+				exception.printStackTrace();
+			}
+		}
 	}
-	
 }

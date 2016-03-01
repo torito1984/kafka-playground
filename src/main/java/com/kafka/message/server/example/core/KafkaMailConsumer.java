@@ -1,30 +1,27 @@
 package com.kafka.message.server.example.core;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 
-import com.kafka.message.server.example.adapt.IntegerEncoderDecoder;
-import kafka.consumer.Consumer;
-import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerIterator;
-import kafka.consumer.KafkaStream;
-import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.message.MessageAndMetadata;
+import java.util.Collections;
+import java.util.Properties;
 
 /**
  * Created by david on 2/27/16.
  */
 public class KafkaMailConsumer extends Thread {
-	private final ConsumerConnector consumer;
-	private final String topic;
-    private IntegerEncoderDecoder keyDecoder;
+	private final KafkaConsumer<Integer, String> consumer;
+    private boolean running = true;
 
 	public KafkaMailConsumer(String topic, String offset, String groupId) {
-		consumer = Consumer.createJavaConsumerConnector(createConsumerConfig(offset, groupId));
-		this.topic = topic;
-		keyDecoder = new IntegerEncoderDecoder();
+		this(topic, offset, groupId, KafkaMailProperties.kafkaServerPort);
+	}
+
+	public KafkaMailConsumer(String topic, String offset, String groupId, int port) {
+		consumer =  new KafkaConsumer<Integer, String>(createConsumerConfig(offset, groupId, port));
+		consumer.subscribe(Collections.singletonList(topic));
 	}
 
 	/**
@@ -32,27 +29,33 @@ public class KafkaMailConsumer extends Thread {
 	 *
 	 * @return the consumer config
 	 */
-	private static ConsumerConfig createConsumerConfig(String offset, String groupId) {
+	private static Properties createConsumerConfig(String offset, String groupId, int port) {
 		Properties props = new Properties();
-		props.put("zookeeper.connect", KafkaMailProperties.zkConnect);
+		props.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
+				KafkaMailProperties.kafkaServerURL+":"+port);
 		props.put("group.id", groupId);
-		props.put("zookeeper.session.timeout.ms", "400");
-		props.put("zookeeper.sync.time.ms", "200");
 		props.put("auto.commit.interval.ms", "1000");
 		props.put("auto.offset.reset", offset);
+		props.put("key.deserializer", "com.kafka.message.server.example.adapt.IntegerDeserializer");
+		props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
-		return new ConsumerConfig(props);
+		return props;
+	}
+
+	public void setRunning(boolean running) {
+		this.running = running;
+	}
+
+	public void notifyMessage(Integer key, String value){
+		System.out.println("Consumer: Received mail (" + key + ") " + value);
 	}
 
 	public void run() {
-		Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
-		topicCountMap.put(topic, new Integer(1));
-		Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
-		KafkaStream<byte[], byte[]> stream = consumerMap.get(topic).get(0);
-		ConsumerIterator<byte[], byte[]> it = stream.iterator();
-		while (it.hasNext()) {
-			MessageAndMetadata<byte[], byte[]> message = it.next();
-			System.out.println("Consumer: Received mail (" + keyDecoder.fromBytes(message.key()) + ") " + new String(message.message()));
+		while(running) {
+			ConsumerRecords<Integer, String> records = consumer.poll(1000);
+			for (ConsumerRecord<Integer, String> record : records) {
+				notifyMessage(record.key(), record.value());
+			}
 		}
 	}
 }
