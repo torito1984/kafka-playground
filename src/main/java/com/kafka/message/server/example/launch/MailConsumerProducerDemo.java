@@ -23,7 +23,7 @@ import static com.kafka.message.server.example.util.GlobalNames.*;
  * 
  * @author Abhishek Sharma
  */
-public class MailConsumerProducerDemo implements KafkaMailProperties {
+public class MailConsumerProducerDemo {
 
 	/**
 	 * The main method.

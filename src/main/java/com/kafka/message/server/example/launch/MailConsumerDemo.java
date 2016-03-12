@@ -15,7 +15,7 @@ import static com.kafka.message.server.example.util.GlobalNames.*;
 /**
  * Created by david on 2/27/16.
  */
-public class MailConsumerDemo implements KafkaMailProperties {
+public class MailConsumerDemo {
 
 	/**
 	 * Gets the producer options.
